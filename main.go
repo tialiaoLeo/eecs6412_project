@@ -2,20 +2,49 @@ package main
 
 import (
 	"fmt"
+	"sync"
 )
 
 //TIP <p>To run your code, right-click the code and select <b>Run</b>.</p> <p>Alternatively, click
 // the <icon src="AllIcons.Actions.Execute"/> icon in the gutter and select the <b>Run</b> menu item from here.</p>
 
 func main() {
-	//TIP <p>Press <shortcut actionId="ShowIntentionActions"/> when your caret is at the underlined text
-	// to see how GoLand suggests fixing the warning.</p><p>Alternatively, if available, click the lightbulb to view possible fixes.</p>
-	s := "gopher"
-	fmt.Println("Hello and welcome, %s!", s)
-
-	for i := 1; i <= 5; i++ {
-		//TIP <p>To start your debugging session, right-click your code in the editor and select the Debug option.</p> <p>We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-		// for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.</p>
-		fmt.Println("i =", 100/i)
+	// Create a new Node
+	nodeA := Node{
+		NodeID:        "a",
+		NodeNeighbors: []string{"b", "d"},
+		CoreNum:       2,
 	}
+	/*
+		nodeB := Node{
+			NodeID:        "b",
+			NodeNeighbors: []string{"a", "d", "g"},
+			CoreNum:       3,
+		}*/
+	nodeC := Node{
+		NodeID:        "g",
+		NodeNeighbors: []string{"b", "d", "f", "h"},
+		CoreNum:       4,
+	}
+
+	// WaitGroup to wait for both Go routines to finish
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Increment coreNum for nodeA in a separate goroutine
+	go func() {
+		defer wg.Done()
+		nodeA.IncrementCoreNum()
+		fmt.Printf("After increment, Node A: %+v\n", nodeA)
+	}()
+
+	// Increment coreNum for nodeC in a separate goroutine
+	go func() {
+		defer wg.Done()
+		nodeC.IncrementCoreNum()
+		fmt.Printf("After increment, Node C: %+v\n", nodeC)
+	}()
+
+	// Wait for both goroutines to complete
+	wg.Wait()
 }
