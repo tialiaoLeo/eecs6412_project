@@ -14,7 +14,7 @@ type Edge struct {
 }
 
 // ReadGraphFile reads a graph from a file and returns it as a hash map.
-func ReadGraphFile(filename string) (map[string][]interface{}, error) {
+func ReadGraphFile(filename string) (map[string][]Edge, error) {
 	// Open the file
 	file, err := os.Open(filename)
 	if err != nil {
@@ -23,7 +23,7 @@ func ReadGraphFile(filename string) (map[string][]interface{}, error) {
 	defer file.Close()
 
 	// Create the hash map
-	graph := make(map[string][]interface{})
+	graph := make(map[string][]Edge)
 
 	// Read the file line by line
 	scanner := bufio.NewScanner(file)
