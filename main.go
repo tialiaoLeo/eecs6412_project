@@ -9,6 +9,21 @@ import (
 // the <icon src="AllIcons.Actions.Execute"/> icon in the gutter and select the <b>Run</b> menu item from here.</p>
 
 func main() {
+	filePath := "graph.txt"
+
+	// Call the ReadGraphFile function
+	graph, err := ReadGraphFile(filePath)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	// Print the graph
+	fmt.Println("Graph:")
+	for key, value := range graph {
+		fmt.Printf("%s -> %v\n", key, value)
+	}
+
 	// Create a new Node
 	nodeA := Node{
 		NodeID:        "a",
