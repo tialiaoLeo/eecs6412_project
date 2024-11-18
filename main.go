@@ -3,11 +3,12 @@ package main
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 // TIP <p>To run your code, right-click the code and select <b>Run</b>.</p> <p>Alternatively, click
 // the <icon src="AllIcons.Actions.Execute"/> icon in the gutter and select the <b>Run</b> menu item from here.</p>
-func (n *Node) k_core_exe(graph map[string][]Edge, nodes map[string]Node) {
+func (n *Node) k_core_exe(graph map[string][]Edge, nodes map[string]*Node) {
 	// Example logic for k_core, modify as needed
 	n.k_core(graph, nodes)
 	fmt.Printf("Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
@@ -22,10 +23,10 @@ func main() {
 		return
 	}
 
-	nodes := make(map[string]Node)
+	nodes := make(map[string]*Node)
 	// Print the graph
 	for key, value := range graph {
-		nodes[key] = Node{key, len(value)}
+		nodes[key] = &Node{key, len(value)}
 	}
 
 	// WaitGroup to wait for both Go routines to finish
@@ -33,10 +34,15 @@ func main() {
 
 	for _, n := range nodes {
 		wg.Add(1)
-		go func(n Node) {
+		go func(n *Node) {
 			defer wg.Done()
 			n.k_core(graph, nodes)
 			fmt.Printf("Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
+			if n.NodeID == "g" {
+				time.Sleep(5 * time.Second)
+				n.k_core(graph, nodes)
+				fmt.Printf("After 5 sec Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
+			}
 		}(n)
 	}
 
