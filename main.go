@@ -15,7 +15,8 @@ func (n *Node) k_core_exe(graph map[string][]Edge, nodes map[string]*Node) {
 var done = false
 
 type Global struct {
-	ms_id int
+	// global heart beat msg id
+	hb_msg_id int
 }
 
 func main() {
@@ -47,14 +48,15 @@ func main() {
 			defer wg.Done()
 			n.k_core(graph, nodes)
 			fmt.Printf("Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
-			n.publish(nodes, global)
+			n.publish(nodes, global, graph)
 			for !done {
+				time.Sleep(50 * time.Millisecond)
 				if n.consume() {
 					pre := n.CoreNum
 					n.k_core(graph, nodes)
 					fmt.Printf("Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
 					if pre != n.CoreNum {
-						n.publish(nodes, global)
+						n.publish(nodes, global, graph)
 					}
 				}
 			}
@@ -71,13 +73,12 @@ func terminate(nodes map[string]*Node, global *Global) {
 		// Check if all nodes have empty Msg_queue
 		allIdle := true
 		for _, node := range nodes {
-
 			if len(node.Msg_queue) > 0 {
 				allIdle = false
 				break
 			}
 		}
-		if allIdle && global.ms_id > 0 {
+		if allIdle && global.hb_msg_id > 0 {
 			fmt.Println("Termination condition met. Shutting down...")
 			done = true // Notify all Goroutines to terminate
 			return
