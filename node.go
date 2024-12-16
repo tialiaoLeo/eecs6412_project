@@ -77,7 +77,7 @@ func (n *Node) send(to *Node) {
 	to.secure_msg = append(to.secure_msg, secure_msg{n, fromV, to, "", n.private_key, ""})
 }
 
-func (n *Node) reply(graph map[string][]Edge) {
+func (n *Node) reply() {
 	time.Sleep(300 * time.Millisecond)
 	curMsg := n.secure_msg
 	n.secure_msg = nil

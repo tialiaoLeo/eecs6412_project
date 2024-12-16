@@ -44,7 +44,7 @@ func main() {
 			n.publish(nodes, global, graph)
 			for !done {
 				time.Sleep(100 * time.Millisecond)
-				n.reply(graph)
+				n.reply()
 				n.k_core(graph, nodes, global)
 				if n.consume() {
 					pre := n.CoreNum
