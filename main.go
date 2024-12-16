@@ -6,12 +6,6 @@ import (
 	"time"
 )
 
-func (n *Node) k_core_exe(graph map[string][]Edge, nodes map[string]*Node) {
-	// Example logic for k_core, modify as needed
-	n.k_core(graph, nodes)
-	fmt.Printf("Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
-}
-
 var done = false
 
 type Global struct {
@@ -28,11 +22,10 @@ func main() {
 		fmt.Println("Error:", err)
 		return
 	}
-
 	nodes := make(map[string]*Node)
 	// Print the graph
 	for key, value := range graph {
-		nodes[key] = &Node{key, len(value), []Message{}}
+		nodes[key] = &Node{key, len(value), []heart_beat_msg{}, []secure_msg{}, []bool{}, createKey(key)}
 	}
 
 	// WaitGroup to wait for both Go routines to finish
@@ -46,25 +39,28 @@ func main() {
 		wg.Add(1)
 		go func(n *Node, global *Global) {
 			defer wg.Done()
-			n.k_core(graph, nodes)
+			n.k_core(graph, nodes, global)
 			fmt.Printf("Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
 			n.publish(nodes, global, graph)
 			for !done {
-				time.Sleep(50 * time.Millisecond)
+				time.Sleep(100 * time.Millisecond)
+				n.reply(graph)
+				n.k_core(graph, nodes, global)
 				if n.consume() {
 					pre := n.CoreNum
-					n.k_core(graph, nodes)
-					fmt.Printf("Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
 					if pre != n.CoreNum {
 						n.publish(nodes, global, graph)
 					}
 				}
+				fmt.Printf("Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
 			}
+
 		}(n, global)
 	}
 
 	// Wait for both goroutines to complete
 	wg.Wait()
+
 }
 
 func terminate(nodes map[string]*Node, global *Global) {
@@ -83,5 +79,11 @@ func terminate(nodes map[string]*Node, global *Global) {
 			done = true // Notify all Goroutines to terminate
 			return
 		}
+	}
+}
+
+func debug(n *Node) {
+	if n.NodeID == "a" {
+		fmt.Println("a: ", n.k_core_msg)
 	}
 }
