@@ -30,7 +30,13 @@ func (m *secure_msg) compare() bool {
 	if err1 != nil || err2 != nil {
 		fmt.Println("Error converting strings to integers:", err1, err2)
 	}
+	if toInt != m.to.CoreNum {
+		toInt = m.to.CoreNum
+	}
 
+	if fromInt != m.from.CoreNum {
+		fromInt = m.from.CoreNum
+	}
 	// Perform the comparison
 	if toInt >= fromInt {
 		//fmt.Println("toVclear is greater than or equal to fromVclear")

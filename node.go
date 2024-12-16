@@ -16,7 +16,7 @@ type Node struct {
 	CoreNum     int              // Core number of the node
 	Msg_queue   []heart_beat_msg // heart beat msg
 	secure_msg  []secure_msg     // secure msg received
-	k_core_msg  []bool           // boolean array for k core
+	k_core_msg  map[string]bool  // boolean array for k core
 	private_key string
 }
 
@@ -43,13 +43,18 @@ func (n *Node) num_neighbors(graph map[string][]Edge, nodes map[string]*Node, gl
 	if len(n.k_core_msg) < len(graph[n.NodeID]) {
 		return math.MaxInt32
 	}
-	n.k_core_msg = nil
+	if n.NodeID == "d" {
+		fmt.Printf("d node k core: %v core num: %v \n", n.k_core_msg, n.CoreNum)
+		fmt.Println("d node k core len: ", len(n.k_core_msg))
+	}
+	n.k_core_msg = make(map[string]bool)
 	return count
 
 }
 
 // heart beat publish
 func (n *Node) publish(nodes map[string]*Node, global *Global, neighbors map[string][]Edge) {
+	time.Sleep(300 * time.Millisecond)
 	for _, neighbor := range neighbors[n.NodeID] {
 		var n_node = nodes[neighbor.Target]
 		n_node.Msg_queue = append(n_node.Msg_queue, heart_beat_msg{global.hb_msg_id, n, n_node})
@@ -59,6 +64,7 @@ func (n *Node) publish(nodes map[string]*Node, global *Global, neighbors map[str
 
 // heart beat consume
 func (n *Node) consume() bool {
+	time.Sleep(300 * time.Millisecond)
 	pub_again := len(n.Msg_queue) > 0
 	n.Msg_queue = nil
 	return pub_again
@@ -72,7 +78,7 @@ func (n *Node) send(to *Node) {
 			return
 		}
 	}
-	fmt.Printf("node %v send: %v to: %v \n", n.NodeID, fromV, to.NodeID)
+	//fmt.Printf("node %v send: %v to: %v \n", n.NodeID, fromV, to.NodeID)
 
 	to.secure_msg = append(to.secure_msg, secure_msg{n, fromV, to, "", n.private_key, ""})
 }
@@ -82,9 +88,16 @@ func (n *Node) reply() {
 	curMsg := n.secure_msg
 	n.secure_msg = nil
 	for _, m := range curMsg {
+		/*
+			var exist = false
+			for _,mm := range m.from.k_core_msg{
+				if mm.
+			}
+
+		*/
 		m.to_v, _ = Encrypt(strconv.Itoa(n.CoreNum), n.private_key)
 		m.to_key = n.private_key
-		m.from.k_core_msg = append(m.from.k_core_msg, m.compare())
-		fmt.Printf("node: %v reply with %v back to %v \n", n.NodeID, m.to_v, m.from.NodeID)
+		m.from.k_core_msg[n.NodeID] = m.compare()
+		//fmt.Printf("node: %v reply with %v back to %v \n", n.NodeID, m.to_v, m.from.NodeID)
 	}
 }

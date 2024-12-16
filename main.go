@@ -25,7 +25,7 @@ func main() {
 	nodes := make(map[string]*Node)
 	// Print the graph
 	for key, value := range graph {
-		nodes[key] = &Node{key, len(value), []heart_beat_msg{}, []secure_msg{}, []bool{}, createKey(key)}
+		nodes[key] = &Node{key, len(value), []heart_beat_msg{}, []secure_msg{}, map[string]bool{}, createKey(key)}
 	}
 
 	// WaitGroup to wait for both Go routines to finish
@@ -76,6 +76,7 @@ func terminate(nodes map[string]*Node, global *Global) {
 		}
 		if allIdle && global.hb_msg_id > 0 {
 			fmt.Println("Termination condition met. Shutting down...")
+			time.Sleep(500 * time.Millisecond)
 			done = true // Notify all Goroutines to terminate
 			return
 		}
