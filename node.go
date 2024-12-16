@@ -62,6 +62,20 @@ func (n *Node) publish(nodes map[string]*Node, global *Global, neighbors map[str
 	}
 }
 
+func (n *Node) terminate(nodes map[string]*Node, neighbors map[string][]Edge) bool {
+	var allNeighstop = true
+	for _, n := range neighbors[n.NodeID] {
+		if len(nodes[n.Target].Msg_queue) > 0 {
+			allNeighstop = false
+		}
+	}
+	if len(n.Msg_queue) == 0 && allNeighstop {
+		time.Sleep(200 * time.Millisecond)
+		return true
+	}
+	return false
+}
+
 // heart beat consume
 func (n *Node) consume() bool {
 	time.Sleep(300 * time.Millisecond)
@@ -78,7 +92,7 @@ func (n *Node) send(to *Node) {
 			return
 		}
 	}
-	//fmt.Printf("node %v send: %v to: %v \n", n.NodeID, fromV, to.NodeID)
+	fmt.Printf("node %v send: %v to: %v \n", n.NodeID, fromV, to.NodeID)
 
 	to.secure_msg = append(to.secure_msg, secure_msg{n, fromV, to, "", n.private_key, ""})
 }
@@ -88,16 +102,12 @@ func (n *Node) reply() {
 	curMsg := n.secure_msg
 	n.secure_msg = nil
 	for _, m := range curMsg {
-		/*
-			var exist = false
-			for _,mm := range m.from.k_core_msg{
-				if mm.
-			}
-
-		*/
 		m.to_v, _ = Encrypt(strconv.Itoa(n.CoreNum), n.private_key)
 		m.to_key = n.private_key
-		m.from.k_core_msg[n.NodeID] = m.compare()
-		//fmt.Printf("node: %v reply with %v back to %v \n", n.NodeID, m.to_v, m.from.NodeID)
+		if _, exists := m.from.k_core_msg[n.NodeID]; !exists {
+			// Key does not exist, write it
+			m.from.k_core_msg[n.NodeID] = m.compare()
+		}
+		fmt.Printf("node: %v reply with %v back to %v \n", n.NodeID, m.to_v, m.from.NodeID)
 	}
 }
