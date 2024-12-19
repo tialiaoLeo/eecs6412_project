@@ -1,91 +1,69 @@
 package main
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/base64"
-	"errors"
-	"io"
 )
 
-// Encrypt function: encrypts a plain text string using AES and a private key.
-func Encrypt(plainText, key string) (string, error) {
-	block, err := aes.NewCipher([]byte(createKey(key)))
+// GenerateRSAKeys: Generate a pair of public and private keys for each node
+func GenerateRSAKeys() (*rsa.PrivateKey, error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048) //setting the length of the integer to be large enough
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	cipherText := make([]byte, aes.BlockSize+len(plainText))
-	iv := cipherText[:aes.BlockSize]
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return "", err
-	}
-
-	stream := cipher.NewCFBEncrypter(block, iv)
-	stream.XORKeyStream(cipherText[aes.BlockSize:], []byte(plainText))
-
-	// Encode to Base64 for safe transport as a string.
-	return base64.StdEncoding.EncodeToString(cipherText), nil
+	return privateKey, nil
 }
 
-// Decrypt function: decrypts an encrypted string using AES and a private key.
-func Decrypt(cipherText, key string) (string, error) {
-	cipherBytes, err := base64.StdEncoding.DecodeString(cipherText)
+// EncryptWithPublicKey: use the public key from the target vertex to encrypt
+func EncryptWithPublicKey(message string, publicKey *rsa.PublicKey) (string, error) {
+	encryptedBytes, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKey, []byte(message), nil)
 	if err != nil {
 		return "", err
 	}
-
-	block, err := aes.NewCipher([]byte(createKey(key)))
-	if err != nil {
-		return "", err
-	}
-
-	if len(cipherBytes) < aes.BlockSize {
-		return "", errors.New("ciphertext too short")
-	}
-
-	iv := cipherBytes[:aes.BlockSize]
-	cipherBytes = cipherBytes[aes.BlockSize:]
-
-	stream := cipher.NewCFBDecrypter(block, iv)
-	stream.XORKeyStream(cipherBytes, cipherBytes)
-
-	// Convert bytes back to a string.
-	return string(cipherBytes), nil
+	return base64.StdEncoding.EncodeToString(encryptedBytes), nil
 }
 
-// createKey: ensures the key is exactly 32 bytes long by padding or trimming.
-func createKey(key string) string {
-	const keyLength = 32 // AES-256 key length
-	if len(key) > keyLength {
-		return key[:keyLength]
+// DecryptWithPrivateKey: use its own private key to decrypt
+func DecryptWithPrivateKey(encryptedMessage string, privateKey *rsa.PrivateKey) (string, error) {
+	encryptedBytes, err := base64.StdEncoding.DecodeString(encryptedMessage)
+	if err != nil {
+		return "", err
 	}
-	for len(key) < keyLength {
-		key += "0" // Pad with zeros
+
+	decryptedBytes, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, privateKey, encryptedBytes, nil)
+	if err != nil {
+		return "", err
 	}
-	return key
+	return string(decryptedBytes), nil
 }
 
 /*
-	func main() {
-		privateKey := "mysecretprivatekey123"
-		plainText := "abc"
+func main() {
+	//
+	senderPrivateKey, _ := GenerateRSAKeys()
+	receiverPrivateKey, _ := GenerateRSAKeys()
 
-		// Encrypt the string
-		encrypted, err := Encrypt(plainText, privateKey)
-		if err != nil {
-			fmt.Println("Error encrypting:", err)
-			return
-		}
-		fmt.Println("Encrypted:", encrypted)
+	//
+	senderPublicKey := &senderPrivateKey.PublicKey
+	receiverPublicKey := &receiverPrivateKey.PublicKey
 
-		// Decrypt the string
-		decrypted, err := Decrypt(encrypted, privateKey)
-		if err != nil {
-			fmt.Println("Error decrypting:", err)
-			return
-		}
-		fmt.Println("Decrypted:", decrypted)
+	//
+	message := "k-core: 5"
+	encryptedMessage, err := EncryptWithPublicKey(message, receiverPublicKey)
+	if err != nil {
+		fmt.Println("Error encrypting:", err)
+		return
 	}
+	fmt.Println("Encrypted Message:", encryptedMessage)
+
+	//
+	decryptedMessage, err := DecryptWithPrivateKey(encryptedMessage, receiverPrivateKey)
+	if err != nil {
+		fmt.Println("Error decrypting:", err)
+		return
+	}
+	fmt.Println("Decrypted Message:", decryptedMessage)
+}
 */

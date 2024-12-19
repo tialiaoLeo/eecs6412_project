@@ -13,27 +13,48 @@ type Global struct {
 }
 
 func main() {
-	filePath := "graph.txt"
+	filePath := "fixed_graph.txt"
 	global := &Global{0}
+
 	// Call the ReadGraphFile function
 	graph, err := ReadGraphFile(filePath)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
+
+	// Initialize nodes and generate RSA keys
 	nodes := make(map[string]*Node)
-	// Print the graph
 	for key, value := range graph {
-		nodes[key] = &Node{key, len(value), []heart_beat_msg{}, []secure_msg{}, map[string]bool{}, createKey(key)}
+		privateKey, err := GenerateRSAKeys()
+		if err != nil {
+			fmt.Printf("Error generating keys for node %s: %v\n", key, err)
+			return
+		}
+		nodes[key] = &Node{
+			NodeID:     key,
+			CoreNum:    len(value),
+			Msg_queue:  []heart_beat_msg{},
+			secure_msg: []secure_msg{},
+			k_core_msg: make(map[string]bool),
+			PrivateKey: privateKey,
+			PublicKey:  &privateKey.PublicKey,
+		}
 	}
+
 	ctx, cancel := context.WithCancel(context.Background())
-	// WaitGroup to wait for both Go routines to finish
+
+	// WaitGroup to wait for all Go routines to finish
 	var wg sync.WaitGroup
+
+	// Launch termination goroutine
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		terminate(ctx, cancel, nodes, global)
 	}()
+
+	// Launch goroutines for each node
 	for _, n := range nodes {
 		wg.Add(1)
 		go func(ctx context.Context, n *Node, global *Global) {
@@ -65,9 +86,8 @@ func main() {
 		}(ctx, n, global)
 	}
 
-	// Wait for both goroutines to complete
+	// Wait for all goroutines to complete
 	wg.Wait()
-
 }
 
 func terminate(ctx context.Context, cancel context.CancelFunc, nodes map[string]*Node, global *Global) {
@@ -86,11 +106,5 @@ func terminate(ctx context.Context, cancel context.CancelFunc, nodes map[string]
 			cancel() // Signal cancellation to all goroutines
 			return
 		}
-	}
-}
-
-func debug(n *Node) {
-	if n.NodeID == "a" {
-		fmt.Println("a: ", n.k_core_msg)
 	}
 }

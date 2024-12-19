@@ -2,6 +2,7 @@
 package main
 
 import (
+	"crypto/rsa"
 	"fmt"
 	"math"
 	"strconv"
@@ -11,13 +12,15 @@ import (
 // global variable for message id
 
 // Node represents a node in a graph
+
 type Node struct {
-	NodeID      string           // Unique identifier for the node
-	CoreNum     int              // Core number of the node
-	Msg_queue   []heart_beat_msg // heart beat msg
-	secure_msg  []secure_msg     // secure msg received
-	k_core_msg  map[string]bool  // boolean array for k core
-	private_key string
+	NodeID     string           // Unique identifier for the node
+	CoreNum    int              // Core number of the node
+	Msg_queue  []heart_beat_msg // Heartbeat messages
+	secure_msg []secure_msg     // Secure messages received
+	k_core_msg map[string]bool  // Boolean array for k-core
+	PrivateKey *rsa.PrivateKey  // RSA private key
+	PublicKey  *rsa.PublicKey   // RSA public key
 }
 
 func (n *Node) k_core(graph map[string][]Edge, nodes map[string]*Node, global *Global) {
@@ -80,34 +83,50 @@ func (n *Node) terminate(nodes map[string]*Node, neighbors map[string][]Edge) bo
 func (n *Node) consume() bool {
 	time.Sleep(300 * time.Millisecond)
 	pub_again := len(n.Msg_queue) > 0
-	n.Msg_queue = nil
+	n.Msg_queue = []heart_beat_msg{}
 	return pub_again
 }
-
 func (n *Node) send(to *Node) {
 	time.Sleep(300 * time.Millisecond)
-	fromV, _ := Encrypt(strconv.Itoa(n.CoreNum), n.private_key)
+
+	// using the public key of the target node
+	encryptedCoreNum, err := EncryptWithPublicKey(strconv.Itoa(n.CoreNum), to.PublicKey)
+	if err != nil {
+		fmt.Println("Error encrypting:", err)
+		return
+	}
+
 	for _, m := range to.secure_msg {
 		if m.from.NodeID == n.NodeID {
 			return
 		}
 	}
-	fmt.Printf("node %v send: %v to: %v \n", n.NodeID, fromV, to.NodeID)
 
-	to.secure_msg = append(to.secure_msg, secure_msg{n, fromV, to, "", n.private_key, ""})
+	fmt.Printf("Node %v sends encrypted coreNum to Node %v: %v\n", n.NodeID, to.NodeID, encryptedCoreNum)
+
+	to.secure_msg = append(to.secure_msg, secure_msg{from: n, from_v: encryptedCoreNum, to: to})
 }
-
 func (n *Node) reply() {
 	time.Sleep(300 * time.Millisecond)
 	curMsg := n.secure_msg
 	n.secure_msg = nil
+
 	for _, m := range curMsg {
-		m.to_v, _ = Encrypt(strconv.Itoa(n.CoreNum), n.private_key)
-		m.to_key = n.private_key
+		// encrypt reply message using the public key from the sender
+		encryptedReply, err := EncryptWithPublicKey(strconv.Itoa(n.CoreNum), m.from.PublicKey)
+		if err != nil {
+			fmt.Printf("Node %v failed to encrypt reply: %v\n", n.NodeID, err)
+			continue
+		}
+
+		// store the encrypted message
+		m.to_v = encryptedReply
+
+		// using compare method to compare, which will be firstly decrypted
 		if _, exists := m.from.k_core_msg[n.NodeID]; !exists {
-			// Key does not exist, write it
 			m.from.k_core_msg[n.NodeID] = m.compare()
 		}
-		fmt.Printf("node: %v reply with %v back to %v \n", n.NodeID, m.to_v, m.from.NodeID)
+
+		fmt.Printf("Node %v replied with encrypted coreNum back to Node %v\n", n.NodeID, m.from.NodeID)
 	}
 }
