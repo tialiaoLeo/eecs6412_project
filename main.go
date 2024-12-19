@@ -1,18 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
 )
-
-func (n *Node) k_core_exe(graph map[string][]Edge, nodes map[string]*Node) {
-	// Example logic for k_core, modify as needed
-	n.k_core(graph, nodes)
-	fmt.Printf("Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
-}
-
-var done = false
 
 type Global struct {
 	// global heart beat msg id
@@ -28,46 +21,56 @@ func main() {
 		fmt.Println("Error:", err)
 		return
 	}
-
 	nodes := make(map[string]*Node)
 	// Print the graph
 	for key, value := range graph {
-		nodes[key] = &Node{key, len(value), []Message{}}
+		nodes[key] = &Node{key, len(value), []heart_beat_msg{}, []secure_msg{}, map[string]bool{}, createKey(key)}
 	}
-
+	ctx, cancel := context.WithCancel(context.Background())
 	// WaitGroup to wait for both Go routines to finish
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		terminate(nodes, global)
+		terminate(ctx, cancel, nodes, global)
 	}()
 	for _, n := range nodes {
 		wg.Add(1)
-		go func(n *Node, global *Global) {
+		go func(ctx context.Context, n *Node, global *Global) {
 			defer wg.Done()
-			n.k_core(graph, nodes)
+			n.k_core(graph, nodes, global)
 			fmt.Printf("Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
 			n.publish(nodes, global, graph)
-			for !done {
-				time.Sleep(50 * time.Millisecond)
-				if n.consume() {
-					pre := n.CoreNum
-					n.k_core(graph, nodes)
-					fmt.Printf("Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
-					if pre != n.CoreNum {
-						n.publish(nodes, global, graph)
+
+			for {
+				select {
+				case <-ctx.Done():
+					// Termination signal received
+					fmt.Printf("Node %v shutting down...\n", n.NodeID)
+					return
+				default:
+					// Regular work
+					time.Sleep(100 * time.Millisecond)
+					n.reply()
+					n.k_core(graph, nodes, global)
+					if n.consume() {
+						pre := n.CoreNum
+						if pre != n.CoreNum {
+							n.publish(nodes, global, graph)
+						}
 					}
+					fmt.Printf("Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
 				}
 			}
-		}(n, global)
+		}(ctx, n, global)
 	}
 
 	// Wait for both goroutines to complete
 	wg.Wait()
+
 }
 
-func terminate(nodes map[string]*Node, global *Global) {
+func terminate(ctx context.Context, cancel context.CancelFunc, nodes map[string]*Node, global *Global) {
 	for {
 		time.Sleep(500 * time.Millisecond)
 		// Check if all nodes have empty Msg_queue
@@ -80,8 +83,14 @@ func terminate(nodes map[string]*Node, global *Global) {
 		}
 		if allIdle && global.hb_msg_id > 0 {
 			fmt.Println("Termination condition met. Shutting down...")
-			done = true // Notify all Goroutines to terminate
+			cancel() // Signal cancellation to all goroutines
 			return
 		}
+	}
+}
+
+func debug(n *Node) {
+	if n.NodeID == "a" {
+		fmt.Println("a: ", n.k_core_msg)
 	}
 }
