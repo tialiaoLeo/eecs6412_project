@@ -67,6 +67,7 @@ func (n *Node) terminate(nodes map[string]*Node, graph map[string][]Edge) bool {
 	for _, nn := range nodes {
 		if len(nn.Msg_queue) > 0 || (cur_len < len(graph[nn.NodeID]) && nn.terminate_times == 0) {
 			allNeighstop = false
+			break
 		}
 	}
 	return allNeighstop
