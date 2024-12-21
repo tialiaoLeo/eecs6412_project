@@ -6,7 +6,6 @@ import (
 )
 
 type heart_beat_msg struct {
-	id   int
 	from *Node
 	to   *Node
 }
