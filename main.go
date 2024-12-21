@@ -44,7 +44,7 @@ func main() {
 					}
 				}
 				fmt.Printf("Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
-				if n.terminate_times > 3 {
+				if n.terminate_times > 1 {
 					fmt.Println("Termination condition met. Shutting down...")
 					fmt.Printf("Final Node: %v CoreNum: %v \n", n.NodeID, n.CoreNum)
 					break
