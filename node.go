@@ -12,24 +12,25 @@ import (
 
 // Node represents a node in a graph
 type Node struct {
-	NodeID      string           // Unique identifier for the node
-	CoreNum     int              // Core number of the node
-	Msg_queue   []heart_beat_msg // heart beat msg
-	secure_msg  []secure_msg     // secure msg received
-	k_core_msg  map[string]bool  // boolean array for k core
-	private_key string
+	NodeID          string           // Unique identifier for the node
+	CoreNum         int              // Core number of the node
+	Msg_queue       []heart_beat_msg // heart beat msg
+	secure_msg      []secure_msg     // secure msg received
+	k_core_msg      map[string]bool  // boolean array for k core
+	private_key     string
+	terminate_times int
 }
 
-func (n *Node) k_core(graph map[string][]Edge, nodes map[string]*Node, global *Global) {
-	num_n := n.num_neighbors(graph, nodes, global)
+func (n *Node) k_core(graph map[string][]Edge, nodes map[string]*Node) {
+	num_n := n.num_neighbors(graph, nodes)
 	for n.CoreNum > num_n {
 		n.CoreNum -= 1
-		num_n = n.num_neighbors(graph, nodes, global)
+		num_n = n.num_neighbors(graph, nodes)
 	}
 
 }
 
-func (n *Node) num_neighbors(graph map[string][]Edge, nodes map[string]*Node, global *Global) int {
+func (n *Node) num_neighbors(graph map[string][]Edge, nodes map[string]*Node) int {
 	time.Sleep(100 * time.Millisecond)
 	for _, value := range graph[n.NodeID] {
 		n.send(nodes[value.Target])
@@ -43,37 +44,33 @@ func (n *Node) num_neighbors(graph map[string][]Edge, nodes map[string]*Node, gl
 	if len(n.k_core_msg) < len(graph[n.NodeID]) {
 		return math.MaxInt32
 	}
-	if n.NodeID == "d" {
-		fmt.Printf("d node k core: %v core num: %v \n", n.k_core_msg, n.CoreNum)
-		fmt.Println("d node k core len: ", len(n.k_core_msg))
-	}
 	n.k_core_msg = make(map[string]bool)
 	return count
 
 }
 
 // heart beat publish
-func (n *Node) publish(nodes map[string]*Node, global *Global, neighbors map[string][]Edge) {
+func (n *Node) publish(nodes map[string]*Node, neighbors map[string][]Edge) {
 	time.Sleep(300 * time.Millisecond)
 	for _, neighbor := range neighbors[n.NodeID] {
 		var n_node = nodes[neighbor.Target]
-		n_node.Msg_queue = append(n_node.Msg_queue, heart_beat_msg{global.hb_msg_id, n, n_node})
-		global.hb_msg_id = global.hb_msg_id + 1
+		n_node.Msg_queue = append(n_node.Msg_queue, heart_beat_msg{n, n_node})
 	}
 }
 
-func (n *Node) terminate(nodes map[string]*Node, neighbors map[string][]Edge) bool {
+func (n *Node) terminate(nodes map[string]*Node, graph map[string][]Edge) bool {
+	tms := 30 * (int(n.NodeID[0])%26 + 1)
+	time.Sleep(time.Duration(tms) * time.Millisecond)
+	fmt.Printf("Waiting for: %v \n", tms)
 	var allNeighstop = true
-	for _, n := range neighbors[n.NodeID] {
-		if len(nodes[n.Target].Msg_queue) > 0 {
+	cur_len := len(graph[n.NodeID])
+	for _, nn := range nodes {
+		if len(nn.Msg_queue) > 0 || (cur_len < len(graph[nn.NodeID]) && nn.terminate_times == 0) {
 			allNeighstop = false
+			break
 		}
 	}
-	if len(n.Msg_queue) == 0 && allNeighstop {
-		time.Sleep(200 * time.Millisecond)
-		return true
-	}
-	return false
+	return allNeighstop
 }
 
 // heart beat consume
