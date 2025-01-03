@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	filePath := "fixed_graph.txt"
+	filePath := "fixed_graph_0.txt"
 
 	// Call the ReadGraphFile function
 	graph, err := ReadGraphFile(filePath)
@@ -55,6 +55,8 @@ func main() {
 				}
 				if n.consume() {
 					pre := n.CoreNum
+					n.reply()
+					n.k_core(graph, nodes)
 					if pre != n.CoreNum {
 						n.publish(nodes, graph)
 					}
