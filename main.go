@@ -14,10 +14,11 @@ func main() {
 		fmt.Println("Error:", err)
 		return
 	}
+	Encoder()
 	nodes := make(map[string]*Node)
 	// Print the graph
 	for key, value := range graph {
-		nodes[key] = &Node{key, len(value), []heart_beat_msg{}, []secure_msg{}, map[string]bool{}, createKey(key), 0}
+		nodes[key] = &Node{key, len(value), []heart_beat_msg{}, []*secure_msg{}, map[string]bool{}, 0}
 	}
 	// WaitGroup to wait for both Go routines to finish
 	var wg sync.WaitGroup

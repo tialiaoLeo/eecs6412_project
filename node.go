@@ -4,7 +4,6 @@ package main
 import (
 	"fmt"
 	"math"
-	"strconv"
 	"time"
 )
 
@@ -15,9 +14,8 @@ type Node struct {
 	NodeID          string           // Unique identifier for the node
 	CoreNum         int              // Core number of the node
 	Msg_queue       []heart_beat_msg // heart beat msg
-	secure_msg      []secure_msg     // secure msg received
+	secure_msg      []*secure_msg    // secure msg received
 	k_core_msg      map[string]bool  // boolean array for k core
-	private_key     string
 	terminate_times int
 }
 
@@ -83,15 +81,14 @@ func (n *Node) consume() bool {
 
 func (n *Node) send(to *Node) {
 	time.Sleep(300 * time.Millisecond)
-	fromV, _ := Encrypt(strconv.Itoa(n.CoreNum), n.private_key)
 	for _, m := range to.secure_msg {
 		if m.from.NodeID == n.NodeID {
 			return
 		}
 	}
-	fmt.Printf("node %v send: %v to: %v \n", n.NodeID, fromV, to.NodeID)
-
-	to.secure_msg = append(to.secure_msg, secure_msg{n, fromV, to, "", n.private_key, ""})
+	cur_msg := Newsecure_msg(n.CoreNum, n, to)
+	to.secure_msg = append(to.secure_msg, cur_msg)
+	fmt.Printf("node %v send: %v to: %v \n", n.NodeID, cur_msg.from_v, to.NodeID)
 }
 
 func (n *Node) reply() {
@@ -99,8 +96,8 @@ func (n *Node) reply() {
 	curMsg := n.secure_msg
 	n.secure_msg = nil
 	for _, m := range curMsg {
-		m.to_v, _ = Encrypt(strconv.Itoa(n.CoreNum), n.private_key)
-		m.to_key = n.private_key
+		toV := Encrypt(n.CoreNum, m)
+		m.to_v = &toV
 		if _, exists := m.from.k_core_msg[n.NodeID]; !exists {
 			// Key does not exist, write it
 			m.from.k_core_msg[n.NodeID] = m.compare()

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
-	"strconv"
+	"github.com/tuneinsight/lattigo/v4/bfv"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 type heart_beat_msg struct {
@@ -11,37 +11,65 @@ type heart_beat_msg struct {
 }
 
 type secure_msg struct {
-	from     *Node
-	from_v   string
-	to       *Node
-	to_v     string
-	from_key string
-	to_key   string
+	from      *Node
+	from_v    *rlwe.Ciphertext
+	to        *Node
+	to_v      *rlwe.Ciphertext
+	encoder   bfv.Encoder
+	decryptor rlwe.Decryptor
+	encryptor rlwe.Encryptor
+	params    bfv.Parameters
 }
 
 func (m *secure_msg) compare() bool {
-	fromVclear, _ := Decrypt(m.from_v, m.from_key)
-	toVclear, _ := Decrypt(m.to_v, m.to_key)
-	toInt, err1 := strconv.Atoi(toVclear)
-	fromInt, err2 := strconv.Atoi(fromVclear)
+	ciphertext1 := m.from_v
+	ciphertext2 := m.to_v
+	cur1 := Encrypt(m.from.CoreNum, m)
+	cur2 := Encrypt(m.to.CoreNum, m)
+	if ciphertext1 != &cur1 {
+		ciphertext1 = &cur1
+	}
+	if ciphertext2 != &cur2 {
+		ciphertext2 = &cur2
+	}
+	// Step 5: Subtract ciphertext2 from ciphertext1
+	evaluator := bfv.NewEvaluator(m.params, rlwe.EvaluationKey{})
+	diffCiphertext := evaluator.SubNoModNew(ciphertext1, ciphertext2)
 
-	// Check for conversion errors
-	if err1 != nil || err2 != nil {
-		fmt.Println("Error converting strings to integers:", err1, err2)
-	}
-	if toInt != m.to.CoreNum {
-		toInt = m.to.CoreNum
-	}
+	// Step 6: Decrypt the result
+	diffPlaintext := bfv.NewPlaintext(m.params, m.params.MaxLevel())
+	m.decryptor.Decrypt(diffCiphertext, diffPlaintext)
 
-	if fromInt != m.from.CoreNum {
-		fromInt = m.from.CoreNum
-	}
-	// Perform the comparison
-	if toInt >= fromInt {
-		//fmt.Println("toVclear is greater than or equal to fromVclear")
+	// Decode the result
+	diff := m.encoder.DecodeUintNew(diffPlaintext)
+	// Step 7: Determine comparison result
+	if diff[0] == 0 || diff[0] > 55537 {
+		//fmt.Println("yes") // value2 >= value1
 		return true
 	} else {
-		//fmt.Println("toVclear is less than fromVclear")
+		//fmt.Println("no") // value2 < value1
 		return false
 	}
+}
+
+func Encoder() (bfv.Encoder, rlwe.Decryptor, rlwe.Encryptor, bfv.Parameters) {
+	params, _ := bfv.NewParametersFromLiteral(bfv.PN12QP109)
+
+	// Step 2: Key generation
+	kgen := bfv.NewKeyGenerator(params)
+	sk, pk := kgen.GenKeyPair()
+
+	// Step 3: Create encryptor, decryptor, and encoder
+	encryptor := bfv.NewEncryptor(params, pk)
+	decryptor := bfv.NewDecryptor(params, sk)
+	encoder := bfv.NewEncoder(params)
+	return encoder, decryptor, encryptor, params
+}
+
+func Newsecure_msg(fromV int, from *Node, to *Node) *secure_msg {
+	var encoder, decryptor, encryptor, params = Encoder()
+	cur_msg := &secure_msg{from, nil, to, nil, encoder, decryptor, encryptor, params}
+	c1 := Encrypt(fromV, cur_msg)
+	cur_msg.from_v = &c1
+	return cur_msg
 }
