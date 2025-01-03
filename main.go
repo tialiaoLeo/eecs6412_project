@@ -39,6 +39,8 @@ func main() {
 				}
 				if n.consume() {
 					pre := n.CoreNum
+					n.reply()
+					n.k_core(graph, nodes)
 					if pre != n.CoreNum {
 						n.publish(nodes, graph)
 					}
